@@ -1,4 +1,4 @@
-import { VSCodeDivider, VSCodeLink, VSCodeTextField } from "@vscode/webview-ui-toolkit/react"
+import { VSCodeTextField } from "@vscode/webview-ui-toolkit/react"
 import { ApiConfiguration } from "../../../../../src/shared/api"
 import VSCodeButtonLink from "../../../components/common/VSCodeButtonLink"
 
