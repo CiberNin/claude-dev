@@ -2,14 +2,15 @@ import { VSCodeBadge, VSCodeProgressRing } from "@vscode/webview-ui-toolkit/reac
 import deepEqual from "fast-deep-equal"
 import React, { memo, useEffect, useMemo, useRef } from "react"
 import { useSize } from "react-use"
-import { ClineApiReqInfo, ClineMessage, ClineSayTool } from "../../../../src/shared/ExtensionMessage"
+import { ClineApiReqInfo, ClineMessage } from "../../../../src/shared/ExtensionMessage"
 import { COMMAND_OUTPUT_STRING } from "../../../../src/shared/combineCommandSequences"
-import { vscode } from "../../utils/vscode"
-import CodeAccordian, { removeLeadingNonAlphanumeric } from "../common/CodeAccordian"
+import CodeAccordian from "../common/CodeAccordian"
 import CodeBlock, { CODE_BLOCK_BG_COLOR } from "../common/CodeBlock"
 import MarkdownBlock from "../common/MarkdownBlock"
 import Thumbnails from "../common/Thumbnails"
 import { highlightMentions } from "./TaskHeader"
+import { Tool } from "../tools/types"
+import ToolHandler from "../tools/ToolHandler"
 
 interface ChatRowProps {
 	message: ClineMessage
@@ -198,223 +199,21 @@ export const ChatRowContent = ({
 	}
 
 	const tool = useMemo(() => {
-		if (message.ask === "tool" || message.say === "tool") {
-			return JSON.parse(message.text || "{}") as ClineSayTool
+		if (message.ask === "tool" || message.say === "tool" || message.say === "user_feedback_diff") {
+			return JSON.parse(message.text || "{}") as Tool
 		}
 		return null
 	}, [message.ask, message.say, message.text])
 
 	if (tool) {
-		const toolIcon = (name: string) => (
-			<span
-				className={`codicon codicon-${name}`}
-				style={{ color: "var(--vscode-foreground)", marginBottom: "-1.5px" }}></span>
+		return (
+			<ToolHandler
+				tool={tool}
+				message={message}
+				isExpanded={isExpanded}
+				onToggleExpand={onToggleExpand}
+			/>
 		)
-
-		switch (tool.tool) {
-			case "editedExistingFile":
-				return (
-					<>
-						<div style={headerStyle}>
-							{toolIcon("edit")}
-							<span style={{ fontWeight: "bold" }}>Cline wants to edit this file:</span>
-						</div>
-						<CodeAccordian
-							isLoading={message.partial}
-							diff={tool.diff!}
-							path={tool.path!}
-							isExpanded={isExpanded}
-							onToggleExpand={onToggleExpand}
-						/>
-					</>
-				)
-			case "newFileCreated":
-				return (
-					<>
-						<div style={headerStyle}>
-							{toolIcon("new-file")}
-							<span style={{ fontWeight: "bold" }}>Cline wants to create a new file:</span>
-						</div>
-						<CodeAccordian
-							isLoading={message.partial}
-							code={tool.content!}
-							path={tool.path!}
-							isExpanded={isExpanded}
-							onToggleExpand={onToggleExpand}
-						/>
-					</>
-				)
-			case "readFile":
-				return (
-					<>
-						<div style={headerStyle}>
-							{toolIcon("file-code")}
-							<span style={{ fontWeight: "bold" }}>
-								{message.type === "ask" ? "Cline wants to read this file:" : "Cline read this file:"}
-							</span>
-						</div>
-						{/* <CodeAccordian
-							code={tool.content!}
-							path={tool.path!}
-							isExpanded={isExpanded}
-							onToggleExpand={onToggleExpand}
-						/> */}
-						<div
-							style={{
-								borderRadius: 3,
-								backgroundColor: CODE_BLOCK_BG_COLOR,
-								overflow: "hidden",
-								border: "1px solid var(--vscode-editorGroup-border)",
-							}}>
-							<div
-								style={{
-									color: "var(--vscode-descriptionForeground)",
-									display: "flex",
-									alignItems: "center",
-									padding: "9px 10px",
-									cursor: "pointer",
-									userSelect: "none",
-									WebkitUserSelect: "none",
-									MozUserSelect: "none",
-									msUserSelect: "none",
-								}}
-								onClick={() => {
-									vscode.postMessage({ type: "openFile", text: tool.content })
-								}}>
-								{tool.path?.startsWith(".") && <span>.</span>}
-								<span
-									style={{
-										whiteSpace: "nowrap",
-										overflow: "hidden",
-										textOverflow: "ellipsis",
-										marginRight: "8px",
-										direction: "rtl",
-										textAlign: "left",
-									}}>
-									{removeLeadingNonAlphanumeric(tool.path ?? "") + "\u200E"}
-								</span>
-								<div style={{ flexGrow: 1 }}></div>
-								<span
-									className={`codicon codicon-link-external`}
-									style={{ fontSize: 13.5, margin: "1px 0" }}></span>
-							</div>
-						</div>
-					</>
-				)
-			case "listFilesTopLevel":
-				return (
-					<>
-						<div style={headerStyle}>
-							{toolIcon("folder-opened")}
-							<span style={{ fontWeight: "bold" }}>
-								{message.type === "ask"
-									? "Cline wants to view the top level files in this directory:"
-									: "Cline viewed the top level files in this directory:"}
-							</span>
-						</div>
-						<CodeAccordian
-							code={tool.content!}
-							path={tool.path!}
-							language="shell-session"
-							isExpanded={isExpanded}
-							onToggleExpand={onToggleExpand}
-						/>
-					</>
-				)
-			case "listFilesRecursive":
-				return (
-					<>
-						<div style={headerStyle}>
-							{toolIcon("folder-opened")}
-							<span style={{ fontWeight: "bold" }}>
-								{message.type === "ask"
-									? "Cline wants to recursively view all files in this directory:"
-									: "Cline recursively viewed all files in this directory:"}
-							</span>
-						</div>
-						<CodeAccordian
-							code={tool.content!}
-							path={tool.path!}
-							language="shell-session"
-							isExpanded={isExpanded}
-							onToggleExpand={onToggleExpand}
-						/>
-					</>
-				)
-			case "listCodeDefinitionNames":
-				return (
-					<>
-						<div style={headerStyle}>
-							{toolIcon("file-code")}
-							<span style={{ fontWeight: "bold" }}>
-								{message.type === "ask"
-									? "Cline wants to view source code definition names used in this directory:"
-									: "Cline viewed source code definition names used in this directory:"}
-							</span>
-						</div>
-						<CodeAccordian
-							code={tool.content!}
-							path={tool.path!}
-							isExpanded={isExpanded}
-							onToggleExpand={onToggleExpand}
-						/>
-					</>
-				)
-			case "searchFiles":
-				return (
-					<>
-						<div style={headerStyle}>
-							{toolIcon("search")}
-							<span style={{ fontWeight: "bold" }}>
-								{message.type === "ask" ? (
-									<>
-										Cline wants to search this directory for <code>{tool.regex}</code>:
-									</>
-								) : (
-									<>
-										Cline searched this directory for <code>{tool.regex}</code>:
-									</>
-								)}
-							</span>
-						</div>
-						<CodeAccordian
-							code={tool.content!}
-							path={tool.path! + (tool.filePattern ? `/(${tool.filePattern})` : "")}
-							language="plaintext"
-							isExpanded={isExpanded}
-							onToggleExpand={onToggleExpand}
-						/>
-					</>
-				)
-			// case "inspectSite":
-			// 	const isInspecting =
-			// 		isLast && lastModifiedMessage?.say === "inspect_site_result" && !lastModifiedMessage?.images
-			// 	return (
-			// 		<>
-			// 			<div style={headerStyle}>
-			// 				{isInspecting ? <ProgressIndicator /> : toolIcon("inspect")}
-			// 				<span style={{ fontWeight: "bold" }}>
-			// 					{message.type === "ask" ? (
-			// 						<>Cline wants to inspect this website:</>
-			// 					) : (
-			// 						<>Cline is inspecting this website:</>
-			// 					)}
-			// 				</span>
-			// 			</div>
-			// 			<div
-			// 				style={{
-			// 					borderRadius: 3,
-			// 					border: "1px solid var(--vscode-editorGroup-border)",
-			// 					overflow: "hidden",
-			// 					backgroundColor: CODE_BLOCK_BG_COLOR,
-			// 				}}>
-			// 				<CodeBlock source={`${"```"}shell\n${tool.path}\n${"```"}`} forceWrap={true} />
-			// 			</div>
-			// 		</>
-			// 	)
-			default:
-				return null
-		}
 	}
 
 	switch (message.type) {
@@ -537,22 +336,6 @@ export const ChatRowContent = ({
 							{message.images && message.images.length > 0 && (
 								<Thumbnails images={message.images} style={{ marginTop: "8px" }} />
 							)}
-						</div>
-					)
-				case "user_feedback_diff":
-					const tool = JSON.parse(message.text || "{}") as ClineSayTool
-					return (
-						<div
-							style={{
-								marginTop: -10,
-								width: "100%",
-							}}>
-							<CodeAccordian
-								diff={tool.diff!}
-								isFeedback={true}
-								isExpanded={isExpanded}
-								onToggleExpand={onToggleExpand}
-							/>
 						</div>
 					)
 				case "error":
