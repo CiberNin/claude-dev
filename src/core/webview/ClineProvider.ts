@@ -1,3 +1,4 @@
+// Only updating the relevant parts at the top of the file, rest remains unchanged
 import { Anthropic } from "@anthropic-ai/sdk"
 import axios from "axios"
 import fs from "fs/promises"
@@ -65,20 +66,20 @@ export const GlobalFileNames = {
 }
 
 export class ClineProvider implements vscode.WebviewViewProvider {
-	public static readonly sideBarId = "claude-dev.SidebarProvider" // used in package.json as the view's id. This value cannot be changed due to how vscode caches views based on their id, and updating the id would break existing instances of the extension.
-	public static readonly tabPanelId = "claude-dev.TabPanelProvider"
-	private static activeInstances: Set<ClineProvider> = new Set()
-	private disposables: vscode.Disposable[] = []
-	private view?: vscode.WebviewView | vscode.WebviewPanel
-	private cline?: Cline
-	private workspaceTracker?: WorkspaceTracker
-	private latestAnnouncementId = "oct-28-2024" // update to some unique identifier when we add a new announcement
+    public static readonly sideBarId = "cline-iv.SidebarProvider"
+    public static readonly tabPanelId = "cline-iv.TabPanelProvider"
+    private static activeInstances: Set<ClineProvider> = new Set()
+    private disposables: vscode.Disposable[] = []
+    private view?: vscode.WebviewView | vscode.WebviewPanel
+    private cline?: Cline
+    private workspaceTracker?: WorkspaceTracker
+    private latestAnnouncementId = "oct-28-2024"
 
-	constructor(readonly context: vscode.ExtensionContext, private readonly outputChannel: vscode.OutputChannel) {
-		this.outputChannel.appendLine("ClineProvider instantiated")
-		ClineProvider.activeInstances.add(this)
-		this.workspaceTracker = new WorkspaceTracker(this)
-	}
+    constructor(readonly context: vscode.ExtensionContext, private readonly outputChannel: vscode.OutputChannel) {
+        this.outputChannel.appendLine("ClineProvider instantiated")
+        ClineProvider.activeInstances.add(this)
+        this.workspaceTracker = new WorkspaceTracker(this)
+    }
 
 	/*
 	VSCode extensions use the disposable pattern to clean up resources when the sidebar/editor tab is closed by the user or system. This applies to event listening, commands, interacting with the UI, etc.
@@ -270,7 +271,7 @@ export class ClineProvider implements vscode.WebviewViewProvider {
         */
 		const nonce = getNonce()
 
-		// Tip: Install the es6-string-html VS Code extension to enable code highlighting below
+// Tip: Install the es6-string-html VS Code extension to enable code highlighting below
 		return /*html*/ `
         <!DOCTYPE html>
         <html lang="en">
@@ -281,7 +282,7 @@ export class ClineProvider implements vscode.WebviewViewProvider {
             <meta http-equiv="Content-Security-Policy" content="default-src 'none'; font-src ${webview.cspSource}; style-src ${webview.cspSource} 'unsafe-inline'; img-src ${webview.cspSource} data:; script-src 'nonce-${nonce}';">
             <link rel="stylesheet" type="text/css" href="${stylesUri}">
 			<link href="${codiconsUri}" rel="stylesheet" />
-            <title>Cline</title>
+            <title>Cl-IV</title>
           </head>
           <body>
             <noscript>You need to enable JavaScript to run this app.</noscript>

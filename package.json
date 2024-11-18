@@ -1,6 +1,6 @@
 {
-  "name": "claude-dev",
-  "displayName": "Cline (prev. Claude Dev)",
+  "name": "cline-iv",
+  "displayName": "Cl-IV",
   "description": "Autonomous coding agent right in your IDE, capable of creating/editing files, running commands, using the browser, and more with your permission every step of the way.",
   "version": "2.1.6",
   "icon": "assets/icons/icon.png",
@@ -48,69 +48,69 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "claude-dev-ActivityBar",
-          "title": "Cline",
-          "icon": "$(robot)"
+          "id": "cline-iv-ActivityBar",
+          "title": "Cl-IV",
+          "icon": "$(beaker)"
         }
       ]
     },
     "views": {
-      "claude-dev-ActivityBar": [
+      "cline-iv-ActivityBar": [
         {
           "type": "webview",
-          "id": "claude-dev.SidebarProvider",
+          "id": "cline-iv.SidebarProvider",
           "name": ""
         }
       ]
     },
     "commands": [
       {
-        "command": "cline.plusButtonClicked",
+        "command": "cline-iv.plusButtonClicked",
         "title": "New Task",
         "icon": "$(add)"
       },
       {
-        "command": "cline.historyButtonClicked",
+        "command": "cline-iv.historyButtonClicked",
         "title": "History",
         "icon": "$(history)"
       },
       {
-        "command": "cline.popoutButtonClicked",
+        "command": "cline-iv.popoutButtonClicked",
         "title": "Open in Editor",
         "icon": "$(link-external)"
       },
       {
-        "command": "cline.settingsButtonClicked",
+        "command": "cline-iv.settingsButtonClicked",
         "title": "Settings",
         "icon": "$(settings-gear)"
       },
       {
-        "command": "cline.openInNewTab",
+        "command": "cline-iv.openInNewTab",
         "title": "Open In New Tab",
-        "category": "Cline"
+        "category": "Cl-IV"
       }
     ],
     "menus": {
       "view/title": [
         {
-          "command": "cline.plusButtonClicked",
+          "command": "cline-iv.plusButtonClicked",
           "group": "navigation@1",
-          "when": "view == claude-dev.SidebarProvider"
+          "when": "view == cline-iv.SidebarProvider"
         },
         {
-          "command": "cline.historyButtonClicked",
+          "command": "cline-iv.historyButtonClicked",
           "group": "navigation@2",
-          "when": "view == claude-dev.SidebarProvider"
+          "when": "view == cline-iv.SidebarProvider"
         },
         {
-          "command": "cline.popoutButtonClicked",
+          "command": "cline-iv.popoutButtonClicked",
           "group": "navigation@3",
-          "when": "view == claude-dev.SidebarProvider"
+          "when": "view == cline-iv.SidebarProvider"
         },
         {
-          "command": "cline.settingsButtonClicked",
+          "command": "cline-iv.settingsButtonClicked",
           "group": "navigation@4",
-          "when": "view == claude-dev.SidebarProvider"
+          "when": "view == cline-iv.SidebarProvider"
         }
       ]
     }
