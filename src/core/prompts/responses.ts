@@ -1,6 +1,7 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 import * as path from "path"
 import * as diff from "diff"
+import { FileReadResult } from "../../integrations/misc/extract-text"
 
 export const formatResponse = {
 	toolDenied: () => `The user denied this operation.`,
@@ -83,6 +84,37 @@ Otherwise, if you have not completed the task and do not need additional informa
 		} else {
 			return sorted.join("\n")
 		}
+	},
+
+	formatReadResults: (result: FileReadResult): string => {
+		// Convert absolute path to relative for display
+		const relativePath = path.relative(process.cwd(), result.path).toPosix()
+		
+		// Start ReadResults tag with file statistics
+		let output = `<ReadResults bytes='${result.bytes}' lines='${result.lines}'>\n`
+
+		// Add Content tag
+		if (result.error) {
+			// For errors, use self-closing tag with error message
+			output += `  <Content path='${relativePath}' error='${result.error}'`
+			// Include available statistics even for errors
+			if (result.bytes > 0) output += ` bytes='${result.bytes}'`
+			if (result.lines > 0) output += ` lines='${result.lines}'`
+			if (result.modified > 0) output += ` modified='${result.modified}'`
+			output += `/>\n`
+		} else {
+			// For successful reads, include full metadata and content
+			output += `  <Content\n`
+			output += `    path='${relativePath}'\n`
+			output += `    bytes='${result.bytes}'\n`
+			output += `    lines='${result.lines}'\n`
+			output += `    modified='${result.modified}'>\n`
+			output += result.content
+			output += `\n  </Content>\n`
+		}
+
+		output += `</ReadResults>`
+		return output
 	},
 
 	createPrettyPatch: (filename = "file", oldStr?: string, newStr?: string) => {

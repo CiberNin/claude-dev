@@ -120,12 +120,11 @@ async function getFileOrFolderContent(mentionPath: string, cwd: string): Promise
 		const stats = await fs.stat(absPath)
 
 		if (stats.isFile()) {
-			const isBinary = await isBinaryFile(absPath).catch(() => false)
-			if (isBinary) {
-				return "(Binary file, unable to display content)"
+			const result = await extractTextFromFile(absPath)
+			if (result.error) {
+				return `(${result.error})`
 			}
-			const content = await extractTextFromFile(absPath)
-			return content
+			return result.content || ''
 		} else if (stats.isDirectory()) {
 			const entries = await fs.readdir(absPath, { withFileTypes: true })
 			let folderContent = ""
@@ -141,12 +140,11 @@ async function getFileOrFolderContent(mentionPath: string, cwd: string): Promise
 					fileContentPromises.push(
 						(async () => {
 							try {
-								const isBinary = await isBinaryFile(absoluteFilePath).catch(() => false)
-								if (isBinary) {
+								const result = await extractTextFromFile(absoluteFilePath)
+								if (result.error) {
 									return undefined
 								}
-								const content = await extractTextFromFile(absoluteFilePath)
-								return `<file_content path="${filePath.toPosix()}">\n${content}\n</file_content>`
+								return `<file_content path="${filePath.toPosix()}">\n${result.content}\n</file_content>`
 							} catch (error) {
 								return undefined
 							}

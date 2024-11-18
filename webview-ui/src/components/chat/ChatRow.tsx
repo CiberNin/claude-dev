@@ -245,60 +245,97 @@ export const ChatRowContent = ({
 					</>
 				)
 			case "readFile":
+				// Parse XML content from FileReadResult
+				const xmlContent = tool.content || ''
+				const parser = new DOMParser()
+				const doc = parser.parseFromString(xmlContent, 'text/xml')
+				const readResults = doc.querySelector('ReadResults')
+				const contents = Array.from(doc.querySelectorAll('Content'))
+				
 				return (
 					<>
 						<div style={headerStyle}>
 							{toolIcon("file-code")}
 							<span style={{ fontWeight: "bold" }}>
-								{message.type === "ask" ? "Cline wants to read this file:" : "Cline read this file:"}
+								{message.type === "ask" 
+									? `Cline wants to read ${contents.length > 1 ? "these files" : "this file"}:` 
+									: `Cline read ${contents.length > 1 ? "these files" : "this file"}:`}
 							</span>
-						</div>
-						{/* <CodeAccordian
-							code={tool.content!}
-							path={tool.path!}
-							isExpanded={isExpanded}
-							onToggleExpand={onToggleExpand}
-						/> */}
-						<div
-							style={{
-								borderRadius: 3,
-								backgroundColor: CODE_BLOCK_BG_COLOR,
-								overflow: "hidden",
-								border: "1px solid var(--vscode-editorGroup-border)",
-							}}>
-							<div
-								style={{
-									color: "var(--vscode-descriptionForeground)",
-									display: "flex",
-									alignItems: "center",
-									padding: "9px 10px",
-									cursor: "pointer",
-									userSelect: "none",
-									WebkitUserSelect: "none",
-									MozUserSelect: "none",
-									msUserSelect: "none",
-								}}
-								onClick={() => {
-									vscode.postMessage({ type: "openFile", text: tool.content })
-								}}>
-								{tool.path?.startsWith(".") && <span>.</span>}
-								<span
-									style={{
-										whiteSpace: "nowrap",
-										overflow: "hidden",
-										textOverflow: "ellipsis",
-										marginRight: "8px",
-										direction: "rtl",
-										textAlign: "left",
-									}}>
-									{removeLeadingNonAlphanumeric(tool.path ?? "") + "\u200E"}
+							{readResults?.getAttribute('bytes') && (
+								<span style={{ color: "var(--vscode-descriptionForeground)", fontSize: "0.9em" }}>
+									({readResults.getAttribute('bytes')} bytes, {readResults.getAttribute('lines')} lines)
 								</span>
-								<div style={{ flexGrow: 1 }}></div>
-								<span
-									className={`codicon codicon-link-external`}
-									style={{ fontSize: 13.5, margin: "1px 0" }}></span>
-							</div>
+							)}
 						</div>
+						{contents.map((content, index) => {
+							const path = content.getAttribute('path') || ''
+							const error = content.getAttribute('error')
+							const bytes = content.getAttribute('bytes')
+							const lines = content.getAttribute('lines')
+							const modified = content.getAttribute('modified')
+							
+							return (
+								<div
+									key={path}
+									style={{
+										borderRadius: 3,
+										backgroundColor: CODE_BLOCK_BG_COLOR,
+										overflow: "hidden",
+										border: "1px solid var(--vscode-editorGroup-border)",
+										marginBottom: index < contents.length - 1 ? 8 : 0
+									}}>
+									<div
+										style={{
+											color: error ? "var(--vscode-errorForeground)" : "var(--vscode-descriptionForeground)",
+											display: "flex",
+											alignItems: "center",
+											padding: "9px 10px",
+											cursor: error ? "default" : "pointer",
+											userSelect: "none",
+											WebkitUserSelect: "none",
+											MozUserSelect: "none",
+											msUserSelect: "none",
+										}}
+										onClick={() => {
+											if (!error) {
+												vscode.postMessage({ type: "openFile", text: path })
+											}
+										}}>
+										{path.startsWith(".") && <span>.</span>}
+										<span
+											style={{
+												whiteSpace: "nowrap",
+												overflow: "hidden",
+												textOverflow: "ellipsis",
+												marginRight: "8px",
+												direction: "rtl",
+												textAlign: "left",
+											}}>
+											{removeLeadingNonAlphanumeric(path) + "\u200E"}
+										</span>
+										<div style={{ flexGrow: 1 }}></div>
+										{error ? (
+											<span style={{ fontSize: "0.9em" }}>
+												{error}
+											</span>
+										) : (
+											<>
+												{(bytes || lines || modified) && (
+													<span style={{ fontSize: "0.9em", marginRight: "8px" }}>
+														{bytes && `${bytes} bytes`}
+														{lines && `, ${lines} lines`}
+														{modified && `, modified ${new Date(parseInt(modified)).toLocaleString()}`}
+													</span>
+												)}
+												<span
+													className={`codicon codicon-link-external`}
+													style={{ fontSize: 13.5, margin: "1px 0" }}></span>
+											</>
+										)}
+									</div>
+								</div>
+							)
+						})}
 					</>
 				)
 			case "listFilesTopLevel":

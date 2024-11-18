@@ -1156,52 +1156,52 @@ export class Cline {
 							break
 						}
 					}
-					case "read_file": {
-						const relPath: string | undefined = block.params.path
-						const sharedMessageProps: ClineSayTool = {
-							tool: "readFile",
-							path: getReadablePath(cwd, removeClosingTag("path", relPath)),
-						}
-						try {
-							if (block.partial) {
-								const partialMessage = JSON.stringify({
-									...sharedMessageProps,
-									content: undefined,
-								} satisfies ClineSayTool)
-								if (this.alwaysAllowReadOnly) {
-									await this.say("tool", partialMessage, undefined, block.partial)
-								} else {
-									await this.ask("tool", partialMessage, block.partial).catch(() => {})
-								}
-								break
-							} else {
-								if (!relPath) {
-									this.consecutiveMistakeCount++
-									pushToolResult(await this.sayAndCreateMissingParamError("read_file", "path"))
-									break
-								}
-								this.consecutiveMistakeCount = 0
-								const absolutePath = path.resolve(cwd, relPath)
-								const completeMessage = JSON.stringify({
-									...sharedMessageProps,
-									content: absolutePath,
-								} satisfies ClineSayTool)
-								if (this.alwaysAllowReadOnly) {
+case "read_file": {
+    const relPath: string | undefined = block.params.path
+    const sharedMessageProps: ClineSayTool = {
+        tool: "readFile",
+        path: getReadablePath(cwd, removeClosingTag("path", relPath)),
+    }
+    try {
+        if (block.partial) {
+            const partialMessage = JSON.stringify({
+                ...sharedMessageProps,
+                content: undefined,
+            } satisfies ClineSayTool)
+            if (this.alwaysAllowReadOnly) {
+                await this.say("tool", partialMessage, undefined, block.partial)
+            } else {
+                await this.ask("tool", partialMessage, block.partial).catch(() => {})
+            }
+            break
+        } else {
+            if (!relPath) {
+                this.consecutiveMistakeCount++
+                pushToolResult(await this.sayAndCreateMissingParamError("read_file", "path"))
+                break
+            }
+            this.consecutiveMistakeCount = 0
+            const absolutePath = path.resolve(cwd, relPath)
+            const completeMessage = JSON.stringify({
+                ...sharedMessageProps,
+                content: absolutePath,
+            } satisfies ClineSayTool)
+            if (this.alwaysAllowReadOnly) {
 									await this.say("tool", completeMessage, undefined, false) // need to be sending partialValue bool, since undefined has its own purpose in that the message is treated neither as a partial or completion of a partial, but as a single complete message
-								} else {
-									const didApprove = await askApproval("tool", completeMessage)
-									if (!didApprove) {
-										break
-									}
-								}
-								// now execute the tool like normal
-								const content = await extractTextFromFile(absolutePath)
-								pushToolResult(content)
-								break
-							}
-						} catch (error) {
-							await handleError("reading file", error)
-							break
+            } else {
+                const didApprove = await askApproval("tool", completeMessage)
+                if (!didApprove) {
+                    break
+                }
+            }
+            // Execute the tool with new FileReadResult interface
+            const result = await extractTextFromFile(absolutePath)
+            pushToolResult(formatResponse.formatReadResults(result))
+            break
+        }
+    } catch (error) {
+        await handleError("reading file", error)
+        break
 						}
 					}
 					case "list_files": {
@@ -2180,5 +2180,5 @@ export class Cline {
 		}
 
 		return `<environment_details>\n${details.trim()}\n</environment_details>`
-	}
+    }
 }
