@@ -1,4 +1,3 @@
-// Only updating the relevant parts at the top of the file, rest remains unchanged
 import { Anthropic } from "@anthropic-ai/sdk"
 import axios from "axios"
 import fs from "fs/promises"
@@ -13,7 +12,7 @@ import { getTheme } from "../../integrations/theme/getTheme"
 import WorkspaceTracker from "../../integrations/workspace/WorkspaceTracker"
 import { ApiProvider, ModelInfo } from "../../shared/api"
 import { findLast } from "../../shared/array"
-import { ExtensionMessage } from "../../shared/ExtensionMessage"
+import { DEFAULT_FILE_LIST_LIMIT, ExtensionMessage, ExtensionState } from "../../shared/ExtensionMessage"
 import { HistoryItem } from "../../shared/HistoryItem"
 import { WebviewMessage } from "../../shared/WebviewMessage"
 import { fileExistsAtPath } from "../../utils/fs"
@@ -37,6 +36,7 @@ type SecretKey =
 	| "openAiApiKey"
 	| "geminiApiKey"
 	| "openAiNativeApiKey"
+
 type GlobalStateKey =
 	| "apiProvider"
 	| "apiModelId"
@@ -58,6 +58,7 @@ type GlobalStateKey =
 	| "azureApiVersion"
 	| "openRouterModelId"
 	| "openRouterModelInfo"
+	| "fileListLimit"
 
 export const GlobalFileNames = {
 	apiConversationHistory: "api_conversation_history.json",
@@ -74,6 +75,14 @@ export class ClineProvider implements vscode.WebviewViewProvider {
     private cline?: Cline
     private workspaceTracker?: WorkspaceTracker
     private latestAnnouncementId = "oct-28-2024"
+    private state: ExtensionState = {
+        version: "0.0.0",
+        clineMessages: [],
+        taskHistory: [],
+        shouldShowAnnouncement: false,
+        filterManagerEnabled: false,
+        fileListLimit: DEFAULT_FILE_LIST_LIMIT,
+    }
 
     constructor(readonly context: vscode.ExtensionContext, private readonly outputChannel: vscode.OutputChannel) {
         this.outputChannel.appendLine("ClineProvider instantiated")
@@ -416,6 +425,10 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 						console.log("filterManagerEnabled", message.bool)
 						await config.update('filterManager.enabled', message.bool, true)
 						await this.postStateToWebview()
+						break
+					case "fileListLimit":
+						this.state.fileListLimit = message.value ?? 200
+						await this.context.globalState.update("fileListLimit", this.state.fileListLimit)
 						break
 					case "askResponse":
 						this.cline?.handleWebviewAskResponse(message.askResponse!, message.text, message.images)
@@ -805,7 +818,8 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 			clineMessages: this.cline?.clineMessages || [],
 			taskHistory: (taskHistory || []).filter((item) => item.ts && item.task).sort((a, b) => b.ts - a.ts),
 			shouldShowAnnouncement: lastShownAnnouncementId !== this.latestAnnouncementId,
-		}
+			fileListLimit: this.state.fileListLimit,
+        }
 	}
 
 	async clearTask() {
@@ -859,117 +873,120 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 	https://www.eliostruyf.com/devhack-code-extension-storage-options/
 	*/
 
-	async getState() {
-		const [
-			storedApiProvider,
-			apiModelId,
-			apiKey,
-			openRouterApiKey,
-			awsAccessKey,
-			awsSecretKey,
-			awsSessionToken,
-			awsRegion,
-			awsUseCrossRegionInference,
-			vertexProjectId,
-			vertexRegion,
-			openAiBaseUrl,
-			openAiApiKey,
-			openAiModelId,
-			ollamaModelId,
-			ollamaBaseUrl,
-			lmStudioModelId,
-			lmStudioBaseUrl,
-			anthropicBaseUrl,
-			geminiApiKey,
-			openAiNativeApiKey,
-			azureApiVersion,
-			openRouterModelId,
-			openRouterModelInfo,
-			lastShownAnnouncementId,
-			customInstructions,
-			alwaysAllowReadOnly,
-			taskHistory,
-		] = await Promise.all([
-			this.getGlobalState("apiProvider") as Promise<ApiProvider | undefined>,
-			this.getGlobalState("apiModelId") as Promise<string | undefined>,
-			this.getSecret("apiKey") as Promise<string | undefined>,
-			this.getSecret("openRouterApiKey") as Promise<string | undefined>,
-			this.getSecret("awsAccessKey") as Promise<string | undefined>,
-			this.getSecret("awsSecretKey") as Promise<string | undefined>,
-			this.getSecret("awsSessionToken") as Promise<string | undefined>,
-			this.getGlobalState("awsRegion") as Promise<string | undefined>,
-			this.getGlobalState("awsUseCrossRegionInference") as Promise<boolean | undefined>,
-			this.getGlobalState("vertexProjectId") as Promise<string | undefined>,
-			this.getGlobalState("vertexRegion") as Promise<string | undefined>,
-			this.getGlobalState("openAiBaseUrl") as Promise<string | undefined>,
-			this.getSecret("openAiApiKey") as Promise<string | undefined>,
-			this.getGlobalState("openAiModelId") as Promise<string | undefined>,
-			this.getGlobalState("ollamaModelId") as Promise<string | undefined>,
-			this.getGlobalState("ollamaBaseUrl") as Promise<string | undefined>,
-			this.getGlobalState("lmStudioModelId") as Promise<string | undefined>,
-			this.getGlobalState("lmStudioBaseUrl") as Promise<string | undefined>,
-			this.getGlobalState("anthropicBaseUrl") as Promise<string | undefined>,
-			this.getSecret("geminiApiKey") as Promise<string | undefined>,
-			this.getSecret("openAiNativeApiKey") as Promise<string | undefined>,
-			this.getGlobalState("azureApiVersion") as Promise<string | undefined>,
-			this.getGlobalState("openRouterModelId") as Promise<string | undefined>,
-			this.getGlobalState("openRouterModelInfo") as Promise<ModelInfo | undefined>,
-			this.getGlobalState("lastShownAnnouncementId") as Promise<string | undefined>,
-			this.getGlobalState("customInstructions") as Promise<string | undefined>,
-			this.getGlobalState("alwaysAllowReadOnly") as Promise<boolean | undefined>,
-			this.getGlobalState("taskHistory") as Promise<HistoryItem[] | undefined>,
-		])
+async getState() {
+    const [
+        storedApiProvider,
+        apiModelId,
+        apiKey,
+        openRouterApiKey,
+        awsAccessKey,
+        awsSecretKey,
+        awsSessionToken,
+        awsRegion,
+        awsUseCrossRegionInference,
+        vertexProjectId,
+        vertexRegion,
+        openAiBaseUrl,
+        openAiApiKey,
+        openAiModelId,
+        ollamaModelId,
+        ollamaBaseUrl,
+        lmStudioModelId,
+        lmStudioBaseUrl,
+        anthropicBaseUrl,
+        geminiApiKey,
+        openAiNativeApiKey,
+        azureApiVersion,
+        openRouterModelId,
+        openRouterModelInfo,
+        lastShownAnnouncementId,
+        customInstructions,
+        alwaysAllowReadOnly,
+        taskHistory,
+        fileListLimit,
+    ] = await Promise.all([
+        this.getGlobalState("apiProvider") as Promise<ApiProvider | undefined>,
+        this.getGlobalState("apiModelId") as Promise<string | undefined>,
+        this.getSecret("apiKey") as Promise<string | undefined>,
+        this.getSecret("openRouterApiKey") as Promise<string | undefined>,
+        this.getSecret("awsAccessKey") as Promise<string | undefined>,
+        this.getSecret("awsSecretKey") as Promise<string | undefined>,
+        this.getSecret("awsSessionToken") as Promise<string | undefined>,
+        this.getGlobalState("awsRegion") as Promise<string | undefined>,
+        this.getGlobalState("awsUseCrossRegionInference") as Promise<boolean | undefined>,
+        this.getGlobalState("vertexProjectId") as Promise<string | undefined>,
+        this.getGlobalState("vertexRegion") as Promise<string | undefined>,
+        this.getGlobalState("openAiBaseUrl") as Promise<string | undefined>,
+        this.getSecret("openAiApiKey") as Promise<string | undefined>,
+        this.getGlobalState("openAiModelId") as Promise<string | undefined>,
+        this.getGlobalState("ollamaModelId") as Promise<string | undefined>,
+        this.getGlobalState("ollamaBaseUrl") as Promise<string | undefined>,
+        this.getGlobalState("lmStudioModelId") as Promise<string | undefined>,
+        this.getGlobalState("lmStudioBaseUrl") as Promise<string | undefined>,
+        this.getGlobalState("anthropicBaseUrl") as Promise<string | undefined>,
+        this.getSecret("geminiApiKey") as Promise<string | undefined>,
+        this.getSecret("openAiNativeApiKey") as Promise<string | undefined>,
+        this.getGlobalState("azureApiVersion") as Promise<string | undefined>,
+        this.getGlobalState("openRouterModelId") as Promise<string | undefined>,
+        this.getGlobalState("openRouterModelInfo") as Promise<ModelInfo | undefined>,
+        this.getGlobalState("lastShownAnnouncementId") as Promise<string | undefined>,
+        this.getGlobalState("customInstructions") as Promise<string | undefined>,
+        this.getGlobalState("alwaysAllowReadOnly") as Promise<boolean | undefined>,
+        this.getGlobalState("taskHistory") as Promise<HistoryItem[] | undefined>,
+        this.getGlobalState("fileListLimit") as Promise<number | undefined>,
+    ])
 
-		let apiProvider: ApiProvider
-		if (storedApiProvider) {
-			apiProvider = storedApiProvider
-		} else {
-			// Either new user or legacy user that doesn't have the apiProvider stored in state
-			// (If they're using OpenRouter or Bedrock, then apiProvider state will exist)
-			if (apiKey) {
-				apiProvider = "anthropic"
-			} else {
-				// New users should default to openrouter
-				apiProvider = "openrouter"
-			}
-		}
+    let apiProvider: ApiProvider
+    if (storedApiProvider) {
+        apiProvider = storedApiProvider
+    } else {
+        // Either new user or legacy user that doesn't have the apiProvider stored in state
+        // (If they're using OpenRouter or Bedrock, then apiProvider state will exist)
+        if (apiKey) {
+            apiProvider = "anthropic"
+        } else {
+            // New users should default to openrouter
+            apiProvider = "openrouter"
+        }
+    }
 
-		// Get the filterManager setting from VS Code configuration
-		const config = vscode.workspace.getConfiguration('cline')
-		const filterManagerEnabled = config.get<boolean>('filterManager.enabled', false)
+    // Get the filterManager setting from VS Code configuration
+    const config = vscode.workspace.getConfiguration('cline')
+    const filterManagerEnabled = config.get<boolean>('filterManager.enabled', false)
 
-		return {
-			apiConfiguration: {
-				apiProvider,
-				apiModelId,
-				apiKey,
-				openRouterApiKey,
-				awsAccessKey,
-				awsSecretKey,
-				awsSessionToken,
-				awsRegion,
-				awsUseCrossRegionInference,
-				vertexProjectId,
-				vertexRegion,
-				openAiBaseUrl,
-				openAiApiKey,
-				openAiModelId,
-				ollamaModelId,
-				ollamaBaseUrl,
-				lmStudioModelId,
-				lmStudioBaseUrl,
-				anthropicBaseUrl,
-				geminiApiKey,
-				openAiNativeApiKey,
-				azureApiVersion,
-				openRouterModelId,
-				openRouterModelInfo,
-			},
-			lastShownAnnouncementId,
-			customInstructions,
-			alwaysAllowReadOnly: alwaysAllowReadOnly ?? false,
-			taskHistory,
-		}
+    return {
+        apiConfiguration: {
+            apiProvider,
+            apiModelId,
+            apiKey,
+            openRouterApiKey,
+            awsAccessKey,
+            awsSecretKey,
+            awsSessionToken,
+            awsRegion,
+            awsUseCrossRegionInference,
+            vertexProjectId,
+            vertexRegion,
+            openAiBaseUrl,
+            openAiApiKey,
+            openAiModelId,
+            ollamaModelId,
+            ollamaBaseUrl,
+            lmStudioModelId,
+            lmStudioBaseUrl,
+            anthropicBaseUrl,
+            geminiApiKey,
+            openAiNativeApiKey,
+            azureApiVersion,
+            openRouterModelId,
+            openRouterModelInfo,
+        },
+        lastShownAnnouncementId,
+        customInstructions,
+        alwaysAllowReadOnly: alwaysAllowReadOnly ?? false,
+        taskHistory,
+        fileListLimit: fileListLimit ?? 200,
+        }
 	}
 
 	async updateTaskHistory(item: HistoryItem): Promise<HistoryItem[]> {
@@ -1026,7 +1043,7 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 
 	private async getSecret(key: SecretKey) {
 		return await this.context.secrets.get(key)
-	}
+}
 
 	// dev
 

@@ -56,6 +56,7 @@ Description: Request to read the contents of a file at the specified path.
 Use this when you need to examine the contents of an existing file you do not know the contents of, for example to analyze code, review text files, or extract information from configuration files.
 Automatically extracts raw text from PDF and DOCX files. May not be suitable for other types of binary files, as it returns the raw content as a string.
 A prime target for batched calling. You should definitely use this tool to read every file that seems relevant first thing when you start a task, and don't hesitate to invoke it any time you become unsure what the actual current content of the file is.
+This command requires time to process, so you should usually invoke all the reads you expect to need, then wait for the results before proceeding with any writes.
 Parameters:
 - path: (required) The path of the file to read (relative to the current working directory ${cwd.toPosix()})
 Usage:
@@ -65,6 +66,9 @@ Usage:
 
 ## write_to_file
 Description: Request to write content to a file at the specified path. If the file exists, it will be overwritten with the provided content.
+What you provide to this tool will entirely OVERWRITE the existing contents. If you fail to transcribe any portion of the existing file that you wished to preserve, then it is effectively deleted.
+As such, Alway Provide Complete Updated Code or the user is likely to reject and make you redo all the work.
+Never use this tool in the same message as read_file. Read file takes time to process and you won't have it's results if you fail to wait.
 If the file doesn't exist, it will be created. This tool will automatically create any directories needed to write the file.
 It is safe to invoke this tool multiple times per message, and in fact strongly encouraged.
 Be aware if if the user needs to provide feedback on any of the batched writes, then all subsequent writes will be aborted and you will need to repeat them after addressing the users feedback.

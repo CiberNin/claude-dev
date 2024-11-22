@@ -21,6 +21,7 @@ import { ApiConfiguration } from "../shared/api"
 import { findLastIndex } from "../shared/array"
 import { combineApiRequests } from "../shared/combineApiRequests"
 import { combineCommandSequences } from "../shared/combineCommandSequences"
+import { DEFAULT_FILE_LIST_LIMIT } from "../shared/ExtensionMessage"
 import {
 	BrowserAction,
 	BrowserActionResult,
@@ -57,26 +58,27 @@ type UserContent = Array<
 >
 
 export class Cline {
-	readonly taskId: string
-	api: ApiHandler
-	private terminalManager: TerminalManager
-	private urlContentFetcher: UrlContentFetcher
-	private browserSession: BrowserSession
-	private didEditFile: boolean = false
-	customInstructions?: string
-	alwaysAllowReadOnly: boolean
-	apiConversationHistory: Anthropic.MessageParam[] = []
-	clineMessages: ClineMessage[] = []
-	private askResponse?: ClineAskResponse
-	private askResponseText?: string
-	private askResponseImages?: string[]
-	private lastMessageTs?: number
-	private consecutiveMistakeCount: number = 0
-	private providerRef: WeakRef<ClineProvider>
-	private abort: boolean = false
-	didFinishAborting = false
-	abandoned = false
-	private diffViewProvider: DiffViewProvider
+    readonly taskId: string
+    api: ApiHandler
+    private terminalManager: TerminalManager
+    private urlContentFetcher: UrlContentFetcher
+    private browserSession: BrowserSession
+    private didEditFile: boolean = false
+    customInstructions?: string
+    alwaysAllowReadOnly: boolean
+    private fileListLimit: number = DEFAULT_FILE_LIST_LIMIT
+    apiConversationHistory: Anthropic.MessageParam[] = []
+    clineMessages: ClineMessage[] = []
+    private askResponse?: ClineAskResponse
+    private askResponseText?: string
+    private askResponseImages?: string[]
+    private lastMessageTs?: number
+    private consecutiveMistakeCount: number = 0
+    private providerRef: WeakRef<ClineProvider>
+    private abort: boolean = false
+    didFinishAborting = false
+    abandoned = false
+    private diffViewProvider: DiffViewProvider
 
 	// streaming
 	private currentStreamingContentIndex = 0
@@ -89,34 +91,39 @@ export class Cline {
 	private didAlreadyUseTool = false
 	private didCompleteReadingStream = false
 
-	constructor(
-		provider: ClineProvider,
-		apiConfiguration: ApiConfiguration,
-		customInstructions?: string,
-		alwaysAllowReadOnly?: boolean,
-		task?: string,
-		images?: string[],
-		historyItem?: HistoryItem
-	) {
-		this.providerRef = new WeakRef(provider)
-		this.api = buildApiHandler(apiConfiguration)
-		this.terminalManager = new TerminalManager()
-		this.urlContentFetcher = new UrlContentFetcher(provider.context)
-		this.browserSession = new BrowserSession(provider.context)
-		this.diffViewProvider = new DiffViewProvider(cwd)
-		this.customInstructions = customInstructions
-		this.alwaysAllowReadOnly = alwaysAllowReadOnly ?? false
+constructor(
+    provider: ClineProvider,
+    apiConfiguration: ApiConfiguration,
+    customInstructions?: string,
+    alwaysAllowReadOnly?: boolean,
+    task?: string,
+    images?: string[],
+    historyItem?: HistoryItem
+) {
+    this.providerRef = new WeakRef(provider)
+    this.api = buildApiHandler(apiConfiguration)
+    this.terminalManager = new TerminalManager()
+    this.urlContentFetcher = new UrlContentFetcher(provider.context)
+    this.browserSession = new BrowserSession(provider.context)
+    this.diffViewProvider = new DiffViewProvider(cwd)
+    this.customInstructions = customInstructions
+    this.alwaysAllowReadOnly = alwaysAllowReadOnly ?? false
+    this.fileListLimit = DEFAULT_FILE_LIST_LIMIT
 
-		if (historyItem) {
-			this.taskId = historyItem.id
-			this.resumeTaskFromHistory()
-		} else if (task || images) {
-			this.taskId = Date.now().toString()
-			this.startTask(task, images)
-		} else {
-			throw new Error("Either historyItem or task/images must be provided")
-		}
-	}
+    if (historyItem) {
+        this.taskId = historyItem.id
+        this.resumeTaskFromHistory()
+    } else if (task || images) {
+        this.taskId = Date.now().toString()
+        this.startTask(task, images)
+    } else {
+        throw new Error("Either historyItem or task/images must be provided")
+    }
+    // Get the fileListLimit from provider's state
+    provider.getState().then(state => {
+        this.fileListLimit = state.fileListLimit ?? 200
+        })
+}
 
 	// Storing task to disk for history
 
@@ -1232,7 +1239,7 @@ export class Cline {
 								}
 								this.consecutiveMistakeCount = 0
 								const absolutePath = path.resolve(cwd, relDirPath)
-								const [files, didHitLimit] = await listFiles(absolutePath, recursive, 200)
+								const [files, didHitLimit] = await listFiles(absolutePath, recursive, this.fileListLimit)
 								const result = formatResponse.formatFilesList(absolutePath, files, didHitLimit)
 								const completeMessage = JSON.stringify({
 									...sharedMessageProps,
@@ -2179,12 +2186,12 @@ const updateApiReqMsg = (cancelReason?: ClineApiReqCancelReason, streamingFailed
 				// don't want to immediately access desktop since it would show permission popup
 				details += "(Desktop files not shown automatically. Use list_files to explore if needed.)"
 			} else {
-				const [files, didHitLimit] = await listFiles(cwd, true, 200)
+				const [files, didHitLimit] = await listFiles(cwd, true, this.fileListLimit)
 				const result = formatResponse.formatFilesList(cwd, files, didHitLimit)
 				details += result
 			}
 		}
 
 		return `<environment_details>\n${details.trim()}\n</environment_details>`
-	}
-}
+        }
+    }

@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react"
 import { useEvent } from "react-use"
-import { ExtensionMessage, ExtensionState } from "../../../src/shared/ExtensionMessage"
+import { DEFAULT_FILE_LIST_LIMIT, ExtensionMessage, ExtensionState } from "../../../src/shared/ExtensionMessage"
 import {
 	ApiConfiguration,
 	ModelInfo,
@@ -22,6 +22,7 @@ interface ExtensionStateContextType extends ExtensionState {
 	setAlwaysAllowReadOnly: (value: boolean) => void
 	setShowAnnouncement: (value: boolean) => void
 	setFilterManagerEnabled: (value: boolean) => void
+	setFileListLimit: (value: number) => void
 }
 
 const ExtensionStateContext = createContext<ExtensionStateContextType | undefined>(undefined)
@@ -33,6 +34,7 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 		taskHistory: [],
 		shouldShowAnnouncement: false,
 		filterManagerEnabled: false,
+		fileListLimit: DEFAULT_FILE_LIST_LIMIT,
 	})
 	const [didHydrateState, setDidHydrateState] = useState(false)
 	const [showWelcome, setShowWelcome] = useState(false)
@@ -118,6 +120,10 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 		setAlwaysAllowReadOnly: (value) => setState((prevState) => ({ ...prevState, alwaysAllowReadOnly: value })),
 		setShowAnnouncement: (value) => setState((prevState) => ({ ...prevState, shouldShowAnnouncement: value })),
 		setFilterManagerEnabled: (value) => setState((prevState) => ({ ...prevState, filterManagerEnabled: value })),
+		setFileListLimit: (value) => {
+			setState((prevState) => ({ ...prevState, fileListLimit: value }))
+			vscode.postMessage({ type: "fileListLimit", value })
+		},
 	}
 
 	return <ExtensionStateContext.Provider value={contextValue}>{children}</ExtensionStateContext.Provider>

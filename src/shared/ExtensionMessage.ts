@@ -1,6 +1,8 @@
 import { ApiConfiguration, ModelInfo } from "./api"
 import { HistoryItem } from "./HistoryItem"
 
+export const DEFAULT_FILE_LIST_LIMIT = 200
+
 // webview will hold state
 export interface ExtensionMessage {
 	type:
@@ -14,6 +16,7 @@ export interface ExtensionMessage {
 		| "invoke"
 		| "partialMessage"
 		| "openRouterModels"
+		| "fileListLimit"  // Added for file list limit setting
 	text?: string
 	action?: "chatButtonClicked" | "settingsButtonClicked" | "historyButtonClicked" | "didBecomeVisible"
 	invoke?: "sendMessage" | "primaryButtonClick" | "secondaryButtonClick"
@@ -24,6 +27,7 @@ export interface ExtensionMessage {
 	filePaths?: string[]
 	partialMessage?: ClineMessage
 	openRouterModels?: Record<string, ModelInfo>
+	value?: number  // Added for file list limit value
 }
 
 export interface ExtensionState {
@@ -36,6 +40,7 @@ export interface ExtensionState {
 	clineMessages: ClineMessage[]
 	taskHistory: HistoryItem[]
 	shouldShowAnnouncement: boolean
+	fileListLimit: number  // Added file list limit to state
 }
 
 export interface ClineMessage {

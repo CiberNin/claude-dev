@@ -1,5 +1,6 @@
-import { VSCodeButton, VSCodeCheckbox, VSCodeLink, VSCodeTextArea } from "@vscode/webview-ui-toolkit/react"
+import { VSCodeButton, VSCodeCheckbox, VSCodeLink, VSCodeTextArea, VSCodeTextField } from "@vscode/webview-ui-toolkit/react"
 import { memo, useEffect, useState } from "react"
+import { DEFAULT_FILE_LIST_LIMIT } from "../../../../src/shared/ExtensionMessage"
 import { useExtensionState } from "../../context/ExtensionStateContext"
 import { validateApiConfiguration, validateModelId } from "../../utils/validate"
 import { vscode } from "../../utils/vscode"
@@ -22,6 +23,8 @@ const SettingsView = ({ onDone }: SettingsViewProps) => {
 		openRouterModels,
 		filterManagerEnabled,
 		setFilterManagerEnabled,
+		fileListLimit,
+		setFileListLimit,
 	} = useExtensionState()
 	const [apiErrorMessage, setApiErrorMessage] = useState<string | undefined>(undefined)
 	const [modelIdErrorMessage, setModelIdErrorMessage] = useState<string | undefined>(undefined)
@@ -53,6 +56,13 @@ const SettingsView = ({ onDone }: SettingsViewProps) => {
 		const enabled = e.target.checked
 		setFilterManagerEnabled(enabled)
 		vscode.postMessage({ type: "filterManagerEnabled", bool: enabled })
+	}
+
+	const handleFileListLimitChange = (e: any) => {
+		const value = parseInt(e.target.value) || DEFAULT_FILE_LIST_LIMIT
+		const limitedValue = Math.max(1, value)
+		setFileListLimit(limitedValue)
+		vscode.postMessage({ type: "fileListLimit", value: limitedValue })
 	}
 
 	return (
@@ -107,6 +117,25 @@ const SettingsView = ({ onDone }: SettingsViewProps) => {
 							color: "var(--vscode-descriptionForeground)",
 						}}>
 						These instructions are added to the end of the system prompt sent with every request.
+					</p>
+				</div>
+
+				<div style={{ marginBottom: 5 }}>
+					<VSCodeTextField
+						value={fileListLimit.toString()}
+						style={{ width: "100%" }}
+						inputMode="numeric"
+						pattern="[0-9]*"
+						onInput={handleFileListLimitChange}>
+						<span style={{ fontWeight: "500" }}>File List Limit</span>
+					</VSCodeTextField>
+					<p
+						style={{
+							fontSize: "12px",
+							marginTop: "5px",
+							color: "var(--vscode-descriptionForeground)",
+						}}>
+						Maximum number of files to show in file listings. Minimum value is 1.
 					</p>
 				</div>
 
