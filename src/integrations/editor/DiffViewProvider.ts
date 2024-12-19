@@ -4,7 +4,6 @@ import * as fs from "fs/promises"
 import { createDirectoriesForFile } from "../../utils/fs"
 import { arePathsEqual } from "../../utils/path"
 import { formatResponse } from "../../core/prompts/responses"
-import { DecorationController } from "./DecorationController"
 import * as diff from "diff"
 import { diagnosticsToProblemsString, getNewDiagnostics } from "../diagnostics"
 
@@ -19,9 +18,6 @@ export class DiffViewProvider {
 	private relPath?: string
 	private newContent?: string
 	private activeDiffEditor?: vscode.TextEditor
-	private fadedOverlayController?: DecorationController
-	private activeLineController?: DecorationController
-	private streamedLines: string[] = []
 	private preDiagnostics: [vscode.Uri, vscode.Diagnostic[]][] = []
 
 	constructor(private cwd: string) {}
@@ -71,71 +67,48 @@ export class DiffViewProvider {
 			this.documentWasOpen = true
 		}
 		this.activeDiffEditor = await this.openDiffEditor()
-		this.fadedOverlayController = new DecorationController("fadedOverlay", this.activeDiffEditor)
-		this.activeLineController = new DecorationController("activeLine", this.activeDiffEditor)
-		// Apply faded overlay to all lines initially
-		this.fadedOverlayController.addLines(0, this.activeDiffEditor.document.lineCount)
-		this.scrollEditorToLine(0) // will this crash for new files?
-		this.streamedLines = []
 	}
 
 	async update(accumulatedContent: string, isFinal: boolean) {
-		if (!this.relPath || !this.activeLineController || !this.fadedOverlayController) {
+		if (!this.relPath) {
 			throw new Error("Required values not set")
 		}
-		this.newContent = accumulatedContent
-		const accumulatedLines = accumulatedContent.split("\n")
+		
+		// Only process content when it's final
 		if (!isFinal) {
-			accumulatedLines.pop() // remove the last partial line only if it's not the final update
+			return
 		}
-		const diffLines = accumulatedLines.slice(this.streamedLines.length)
 
+		this.newContent = accumulatedContent
 		const diffEditor = this.activeDiffEditor
 		const document = diffEditor?.document
 		if (!diffEditor || !document) {
 			throw new Error("User closed text editor, unable to edit file...")
 		}
 
-		// Place cursor at the beginning of the diff editor to keep it out of the way of the stream animation
+		// Place cursor at the beginning of the diff editor
 		const beginningOfDocument = new vscode.Position(0, 0)
 		diffEditor.selection = new vscode.Selection(beginningOfDocument, beginningOfDocument)
 
-		for (let i = 0; i < diffLines.length; i++) {
-			const currentLine = this.streamedLines.length + i
-			// Replace all content up to the current line with accumulated lines
-			// This is necessary (as compared to inserting one line at a time) to handle cases where html tags on previous lines are auto closed for example
-			const edit = new vscode.WorkspaceEdit()
-			const rangeToReplace = new vscode.Range(0, 0, currentLine + 1, 0)
-			const contentToReplace = accumulatedLines.slice(0, currentLine + 1).join("\n") + "\n"
-			edit.replace(document.uri, rangeToReplace, contentToReplace)
-			await vscode.workspace.applyEdit(edit)
-			// Update decorations
-			// this.activeLineController.setActiveLine(currentLine)
-			// this.fadedOverlayController.updateOverlayAfterLine(currentLine, document.lineCount)
-			// Scroll to the current line
-			// this.scrollEditorToLine(currentLine)
-		}
-		// Update the streamedLines with the new accumulated content
-		this.streamedLines = accumulatedLines
-		if (isFinal) {
-			// Handle any remaining lines if the new content is shorter than the original
-			if (this.streamedLines.length < document.lineCount) {
-				const edit = new vscode.WorkspaceEdit()
-				edit.delete(document.uri, new vscode.Range(this.streamedLines.length, 0, document.lineCount, 0))
-				await vscode.workspace.applyEdit(edit)
+		// Apply the complete content at once
+		const edit = new vscode.WorkspaceEdit()
+		const fullRange = new vscode.Range(0, 0, document.lineCount, 0)
+		
+		// Add empty last line if original content had one
+		let finalContent = accumulatedContent
+		const hasEmptyLastLine = this.originalContent?.endsWith("\n")
+		if (hasEmptyLastLine) {
+			const accumulatedLines = accumulatedContent.split("\n")
+			if (accumulatedLines[accumulatedLines.length - 1] !== "") {
+				finalContent += "\n"
 			}
-			// Add empty last line if original content had one
-			const hasEmptyLastLine = this.originalContent?.endsWith("\n")
-			if (hasEmptyLastLine) {
-				const accumulatedLines = accumulatedContent.split("\n")
-				if (accumulatedLines[accumulatedLines.length - 1] !== "") {
-					accumulatedContent += "\n"
-				}
-			}
-			// Clear all decorations at the end (before applying final edit)
-			this.fadedOverlayController.clear()
-			this.activeLineController.clear()
 		}
+		
+		edit.replace(document.uri, fullRange, finalContent)
+		await vscode.workspace.applyEdit(edit)
+		
+		// Scroll to first difference to help users see the changes
+		this.scrollToFirstDiff()
 	}
 
 	async saveChanges(): Promise<{
@@ -314,16 +287,6 @@ export class DiffViewProvider {
 		})
 	}
 
-	private scrollEditorToLine(line: number) {
-		if (this.activeDiffEditor) {
-			const scrollLine = line + 4
-			this.activeDiffEditor.revealRange(
-				new vscode.Range(scrollLine, 0, scrollLine, 0),
-				vscode.TextEditorRevealType.InCenter,
-			)
-		}
-	}
-
 	scrollToFirstDiff() {
 		if (!this.activeDiffEditor) {
 			return
@@ -354,9 +317,6 @@ export class DiffViewProvider {
 		this.createdDirs = []
 		this.documentWasOpen = false
 		this.activeDiffEditor = undefined
-		this.fadedOverlayController = undefined
-		this.activeLineController = undefined
-		this.streamedLines = []
 		this.preDiagnostics = []
 	}
 }
