@@ -47,7 +47,7 @@ Usage:
 </execute_command>
 
 ## read_file
-Description: Request to read the contents of the specified filepaths.\
+Description: Request to read the contents of one or more files. This tool can read multiple files in a single operation, which is more efficient than reading files one by one.\
 Use this when you need to examine the contents of an existing file you do not know the contents of, for example to analyze code, review text files, or extract information from configuration files.
 Automatically extracts raw text from PDF and DOCX files.
 May not be suitable for other types of binary files, as it returns the raw content as a string.
@@ -55,9 +55,10 @@ It is always preferable to provide multiple paths instead of reading your files 
 Parameters:
 - path: (required) The path of the file to read (relative to the current working directory ${cwd.toPosix()}). Multiple path elements may be provided.
 Usage:
+
 <read_file>
-<path>File path here</path>
-<path>Second File path here</path>
+<path>package.json</path>
+<path>tsconfig.json</path>
 </read_file>
 
 ## write_to_file
