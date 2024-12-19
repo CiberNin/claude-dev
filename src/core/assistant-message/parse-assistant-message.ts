@@ -27,8 +27,18 @@ export function parseAssistantMessage(assistantMessage: string) {
 			const currentParamValue = accumulator.slice(currentParamValueStartIndex)
 			const paramClosingTag = `</${currentParamName}>`
 			if (currentParamValue.endsWith(paramClosingTag)) {
-				// end of param value
-				currentToolUse.params[currentParamName] = currentParamValue.slice(0, -paramClosingTag.length).trim()
+				// For read_file tool, concatenate multiple paths with comma
+				if (currentToolUse.name === "read_file" && currentParamName === "path") {
+					const pathValue = currentParamValue.slice(0, -paramClosingTag.length).trim()
+					if (!currentToolUse.params.path) {
+						currentToolUse.params.path = pathValue
+					} else {
+						currentToolUse.params.path += `,${pathValue}`
+					}
+				} else {
+					// Handle other tools normally
+					currentToolUse.params[currentParamName] = currentParamValue.slice(0, -paramClosingTag.length).trim()
+				}
 				currentParamName = undefined
 				continue
 			} else {

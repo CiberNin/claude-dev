@@ -1311,27 +1311,44 @@ export class Cline {
 									break
 								}
 								this.consecutiveMistakeCount = 0
-								const absolutePath = path.resolve(cwd, relPath)
-								const completeMessage = JSON.stringify({
-									...sharedMessageProps,
-									content: absolutePath,
-								} satisfies ClineSayTool)
-								if (this.shouldAutoApproveTool(block.name)) {
-									await this.say("tool", completeMessage, undefined, false) // need to be sending partialValue bool, since undefined has its own purpose in that the message is treated neither as a partial or completion of a partial, but as a single complete message
-									this.consecutiveAutoApprovedRequestsCount++
-								} else {
-									showNotificationForApprovalIfAutoApprovalEnabled(
-										`Cline wants to read ${path.basename(absolutePath)}`,
-									)
-									const didApprove = await askApproval("tool", completeMessage)
-									if (!didApprove) {
-										break
-									}
-								}
-								// now execute the tool like normal
-								const content = await extractTextFromFile(absolutePath)
-								pushToolResult(content)
+						const paths = relPath.split(',').map(p => p.trim()).filter(Boolean);
+						const absolutePaths = paths.map(p => path.resolve(cwd, p));
+						const completeMessage = JSON.stringify({
+							...sharedMessageProps,
+							content: paths.join(','),
+						} satisfies ClineSayTool)
+						if (this.shouldAutoApproveTool(block.name)) {
+							await this.say("tool", completeMessage, undefined, false)
+							this.consecutiveAutoApprovedRequestsCount++
+						} else {
+							showNotificationForApprovalIfAutoApprovalEnabled(
+								`Cline wants to read ${paths.length} files`,
+							)
+							const didApprove = await askApproval("tool", completeMessage)
+							if (!didApprove) {
 								break
+							}
+						}
+						// Read each file
+						const results = await Promise.all(paths.map(async (p, i) => {
+							try {
+								const content = await extractTextFromFile(absolutePaths[i])
+								return { path: p, content }
+							} catch (error) {
+								return { path: p, error: error.message }
+							}
+						}));
+						
+						// Format results
+						const formattedResults = results.map(result => {
+							if ('error' in result) {
+								return `File: ${result.path}\nError: ${result.error}`;
+							}
+							return `File: ${result.path}\n${result.content}`;
+						}).join('\n\n---\n\n');
+						
+						pushToolResult(formattedResults)
+						break
 							}
 						} catch (error) {
 							await handleError("reading file", error)

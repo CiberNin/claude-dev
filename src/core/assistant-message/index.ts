@@ -63,6 +63,12 @@ export interface ExecuteCommandToolUse extends ToolUse {
 	params: Partial<Pick<Record<ToolParamName, string>, "command" | "requires_approval">>
 }
 
+export interface FileReadResult {
+	path: string
+	content: string
+	error?: string
+}
+
 export interface ReadFileToolUse extends ToolUse {
 	name: "read_file"
 	params: Partial<Pick<Record<ToolParamName, string>, "path">>
