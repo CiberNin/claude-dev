@@ -110,10 +110,10 @@ export class DiffViewProvider {
 			edit.replace(document.uri, rangeToReplace, contentToReplace)
 			await vscode.workspace.applyEdit(edit)
 			// Update decorations
-			this.activeLineController.setActiveLine(currentLine)
-			this.fadedOverlayController.updateOverlayAfterLine(currentLine, document.lineCount)
+			// this.activeLineController.setActiveLine(currentLine)
+			// this.fadedOverlayController.updateOverlayAfterLine(currentLine, document.lineCount)
 			// Scroll to the current line
-			this.scrollEditorToLine(currentLine)
+			// this.scrollEditorToLine(currentLine)
 		}
 		// Update the streamedLines with the new accumulated content
 		this.streamedLines = accumulatedLines
