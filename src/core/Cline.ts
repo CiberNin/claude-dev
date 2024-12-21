@@ -995,7 +995,7 @@ export class Cline {
 						this.userMessageContent.push(...content)
 					}
 					// once a tool result has been collected, ignore all other tool uses since we should only ever present one tool result per message
-					this.didAlreadyUseTool = true
+					// this.didAlreadyUseTool = true
 				}
 
 				const askApproval = async (type: ClineAsk, partialMessage?: string) => {

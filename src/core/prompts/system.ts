@@ -13,7 +13,7 @@ export const SYSTEM_PROMPT = async (
 
 TOOL USE
 
-You have access to a set of tools that are executed upon the user's approval. You can use one tool per message, and will receive the result of that tool use in the user's response. You use tools step-by-step to accomplish a given task, with each tool use informed by the result of the previous tool use.
+You have access to a set of tools that are executed upon the user's approval. You can use one kind of tool per message, and will receive the result of those tools in the user's response. You use tools step-by-step to accomplish a given task, with each tool use informed by the result of the previous tool use.
 
 # Tool Use Formatting
 
@@ -62,7 +62,11 @@ Usage:
 </read_file>
 
 ## write_to_file
-Description: Request to write content to a file at the specified path. If the file exists, it will be overwritten with the provided content. If the file doesn't exist, it will be created. This tool will automatically create any directories needed to write the file.
+Description: Request to write content to a file at the specified path.
+If the file exists, it will be overwritten with the provided content.
+If the file doesn't exist, it will be created.
+This tool will automatically create any directories needed to write the file.
+This tool may be invoked multiple times in the same message.
 Parameters:
 - path: (required) The path of the file to write to (relative to the current working directory ${cwd.toPosix()})
 - content: (required) The content to write to the file. ALWAYS provide the COMPLETE intended content of the file, without any truncation or omissions. You MUST include ALL parts of the file, even if they haven't been modified.
@@ -75,7 +79,9 @@ Your file content here
 </write_to_file>
 
 ## replace_in_file
-Description: Request to replace sections of content in an existing file using SEARCH/REPLACE blocks that define exact changes to specific parts of the file. This tool should be used when you need to make targeted changes to specific parts of a file.
+Description: Request to replace sections of content in an existing file using SEARCH/REPLACE blocks that define exact changes to specific parts of the file.
+This tool should be used when you need to make targeted changes to specific parts of a file.
+This tool may be invoked multiple times in the same message.
 Parameters:
 - path: (required) The path of the file to modify (relative to the current working directory ${cwd.toPosix()})
 - diff: (required) One or more SEARCH/REPLACE blocks following this exact format:
